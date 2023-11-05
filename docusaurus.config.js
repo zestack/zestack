@@ -6,20 +6,20 @@ const darkCodeTheme = require('prism-react-renderer/themes/dracula');
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
-  title: 'My Site',
-  tagline: 'Dinosaurs are cool',
+  title: 'Slim',
+  tagline: "High performance, extensible, minimalist Go web framework",
   favicon: 'img/favicon.ico',
 
   // Set the production url of your site here
-  url: 'https://your-docusaurus-test-site.com',
+  url: "https://zestack.dev",
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
   baseUrl: '/',
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
-  organizationName: 'facebook', // Usually your GitHub org/user name.
-  projectName: 'docusaurus', // Usually your repo name.
+  organizationName: 'zestack', // Usually your GitHub org/user name.
+  projectName: 'zestack', // Usually your repo name.
 
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'warn',
@@ -28,8 +28,8 @@ const config = {
   // metadata like html lang. For example, if your site is Chinese, you may want
   // to replace "en" with "zh-Hans".
   i18n: {
-    defaultLocale: 'en',
-    locales: ['en'],
+    defaultLocale: 'zh-Hans',
+    locales: ['zh-Hans', 'en'],
   },
 
   presets: [
@@ -64,9 +64,9 @@ const config = {
       // Replace with your project's social card
       image: 'img/docusaurus-social-card.jpg',
       navbar: {
-        title: 'My Site',
+        title: 'Slim',
         logo: {
-          alt: 'My Site Logo',
+          alt: 'slim',
           src: 'img/logo.svg',
         },
         items: [
@@ -78,9 +78,9 @@ const config = {
           },
           {to: '/blog', label: 'Blog', position: 'left'},
           {
-            href: 'https://github.com/facebook/docusaurus',
             label: 'GitHub',
             position: 'right',
+            href: 'https://github.com/zestack',
           },
         ],
       },
@@ -101,15 +101,15 @@ const config = {
             items: [
               {
                 label: 'Stack Overflow',
-                href: 'https://stackoverflow.com/questions/tagged/docusaurus',
+                href: 'https://stackoverflow.com/questions/tagged/zestack',
               },
               {
                 label: 'Discord',
-                href: 'https://discordapp.com/invite/docusaurus',
+                href: 'https://discordapp.com/invite/zestack',
               },
               {
                 label: 'Twitter',
-                href: 'https://twitter.com/docusaurus',
+                href: 'https://twitter.com/zestack',
               },
             ],
           },
@@ -122,16 +122,29 @@ const config = {
               },
               {
                 label: 'GitHub',
-                href: 'https://github.com/facebook/docusaurus',
+                href: 'https://github.com/zestack',
               },
             ],
           },
         ],
-        copyright: `Copyright © ${new Date().getFullYear()} My Project, Inc. Built with Docusaurus.`,
+        copyright: `Copyright © ${new Date().getFullYear()} the Zestack authors.`,
       },
       prism: {
         theme: lightCodeTheme,
         darkTheme: darkCodeTheme,
+      },
+      algolia: {
+        appId: "SY7QS25M83",
+        apiKey: "c9c1669a4c5f1fe90b66c53baeb832ef",
+        indexName: "slim_zestack_dev",
+        contextualSearch: true,
+        externalUrlRegex: "external\\.com|domain\\.com",
+        replaceSearchResultPathname: {
+          from: "/docs/", // or as RegExp: /\/docs\//
+          to: "/",
+        },
+        searchParameters: {},
+        searchPagePath: "search",
       },
     }),
 };
