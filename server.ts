@@ -11,13 +11,6 @@ import { red } from "https://deno.land/std@0.188.0/fmt/colors.ts";
 import { createCommonResponse } from "https://deno.land/std@0.188.0/http/util.ts";
 import { VERSION } from "https://deno.land/std@0.188.0/version.ts";
 
-interface EntryInfo {
-  mode: string;
-  size: string;
-  url: string;
-  name: string;
-}
-
 const ENV_PERM_STATUS =
   Deno.permissions.querySync?.({ name: "env", variable: "DENO_DEPLOYMENT_ID" })
     .state ?? "granted"; // for deno deploy
@@ -68,10 +61,13 @@ function parseRangeHeader(rangeValue: string, fileSize: number) {
 }
 
 function serveNotFound(req: Request): Response {
-  const modRegex = /^\/(?<mod>[a-z][a-z0-9-])$/u;
+  const modRegex = /^\/(?<mod>[a-z][a-z0-9-]*)$/u;
   const parsed = new URL(req.url).pathname.match(modRegex);
   const mod = parsed?.groups?.mod;
+  // todo 利用 Deno.openKv 检查模块是否存在
+  Deno.Kv
   if (!mod) {
+    // todo 重定向到 404 页面
     return createCommonResponse(Status.NotFound);
   }
   const html = `<!DOCTYPE html>
