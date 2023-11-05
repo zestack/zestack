@@ -35,5 +35,5 @@ jobs:
         uses: denoland/deployctl@v1
         with:
           project: "zestack"
-          entrypoint: "https://deno.land/std@0.188.0/http/file_server.ts" # 📝 Update the entrypoint if necessary
+          entrypoint: "https://raw.githubusercontent.com/zestack/zestack/main/server.ts" # 📝 Update the entrypoint if necessary
           root: "build" # 📝 Update the root if necessary
