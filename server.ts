@@ -1,15 +1,16 @@
 #!/usr/bin/env -S deno run --allow-net --allow-read
 
-import { extname, posix } from "https://deno.land/std@0.188.0/path/mod.ts";
-import { contentType } from "https://deno.land/std@0.188.0/media_types/content_type.ts";
-import { serve, serveTls } from "https://deno.land/std@0.188.0/http/server.ts";
-import { calculate, ifNoneMatch } from "https://deno.land/std@0.188.0/http/etag.ts";
-import { isRedirectStatus, Status } from "https://deno.land/std@0.188.0/http/http_status.ts";
-import { ByteSliceStream } from "https://deno.land/std@0.188.0/streams/byte_slice_stream.ts";
-import { parse } from "https://deno.land/std@0.188.0/flags/mod.ts";
-import { red } from "https://deno.land/std@0.188.0/fmt/colors.ts";
-import { createCommonResponse } from "https://deno.land/std@0.188.0/http/util.ts";
-import { VERSION } from "https://deno.land/std@0.188.0/version.ts";
+import {normalize as posixNormalize} from "https://deno.land/std@0.206.0/path/posix/normalize.ts";
+import {extname} from "https://deno.land/std@0.206.0/path/extname.ts";
+import {join} from "https://deno.land/std@0.206.0/path/join.ts";
+import {resolve} from "https://deno.land/std@0.206.0/path/resolve.ts";
+import {contentType} from "https://deno.land/std@0.206.0/media_types/content_type.ts";
+import {calculate, ifNoneMatch} from "https://deno.land/std@0.206.0/http/etag.ts";
+import {isRedirectStatus, Status, STATUS_TEXT} from "https://deno.land/std@0.206.0/http/status.ts";
+import {ByteSliceStream} from "https://deno.land/std@0.206.0/streams/byte_slice_stream.ts";
+import {parse} from "https://deno.land/std@0.206.0/flags/mod.ts";
+import {red} from "https://deno.land/std@0.206.0/fmt/colors.ts";
+import {deepMerge} from "https://deno.land/std@0.206.0/collections/deep_merge.ts";
 
 const ENV_PERM_STATUS =
   Deno.permissions.querySync?.({ name: "env", variable: "DENO_DEPLOYMENT_ID" })
@@ -20,6 +21,48 @@ const DENO_DEPLOYMENT_ID = ENV_PERM_STATUS === "granted"
 const HASHED_DENO_DEPLOYMENT_ID = DENO_DEPLOYMENT_ID
   ? calculate(DENO_DEPLOYMENT_ID, { weak: true })
   : undefined;
+
+// const dns = Deno.env.get("DENO_KV_DNS")
+// const kv = await Deno.openKv(dns);
+const kv = await Deno.openKv();
+
+/**
+ * Internal utility for returning a standardized response,
+ * automatically defining the body, status code and status text,
+ * according to the response type.
+ */
+function createCommonResponse(
+  status: Status,
+  body?: BodyInit | null,
+  init?: ResponseInit,
+): Response {
+  init = deepMerge({
+    status,
+    statusText: STATUS_TEXT[status],
+  }, init ?? {});
+  if (body === undefined) {
+    if (status === Status.NotFound) {
+      const headers = createBaseHeaders();
+      headers.set("content-type", "text/html; charset=UTF-8");
+      init.headers = headers
+      body = `<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width" />
+  <title>zestack.dev</title>
+</head>
+<body>
+  <h1>Not Found</h1>
+  <a href="https://zestack.dev">https://zestack.dev</a>
+</body>
+</html>`
+    } else {
+      body = STATUS_TEXT[status];
+    }
+  }
+  return new Response(body, init);
+}
 
 /**
  * parse range header.
@@ -60,16 +103,20 @@ function parseRangeHeader(rangeValue: string, fileSize: number) {
   }
 }
 
-function serveNotFound(req: Request): Response {
-  const modRegex = /^\/(?<mod>[a-z][a-z0-9-]*)$/u;
-  const parsed = new URL(req.url).pathname.match(modRegex);
-  const mod = parsed?.groups?.mod;
+async function isGoGet(name: string): Promise<string|null> {
+  const {value} = await kv.get(["golang", `pkg@${name}`])
+  return typeof value !== 'string' || !value ? null : value;
+}
+
+async function serveNotFound(req: Request): Promise<Response> {
+  const mod = new URL(req.url).pathname.slice(1);
+  const domain = await isGoGet(mod)
+
   // todo 利用 Deno.openKv 检查模块是否存在
-  Deno.Kv
-  if (!mod) {
-    // todo 重定向到 404 页面
+  if (!mod || !domain) {
     return createCommonResponse(Status.NotFound);
   }
+
   const html = `<!DOCTYPE html>
 <html lang="zh-Hans">
 <head>
@@ -80,7 +127,7 @@ function serveNotFound(req: Request): Response {
   <title>zestack.dev/${mod}</title>
 </head>
 <body>
-  <a href="https://zestack.dev">https://zestack.dev</a>
+  <a href="https://${domain}">https://${domain}</a>
 </body>
 </html>`;
 
@@ -103,12 +150,10 @@ export interface ServeFileOptions {
 
 /**
  * Returns an HTTP Response with the requested file as the body.
- * @param req The server request context used to cleanup the file handle.
+ * @param req The server request context used to clean up the file handle.
  * @param filePath Path of the file to serve.
- * @param algorithm
- * @param fileInfo
  */
-async function serveFile(
+export async function serveFile(
   req: Request,
   filePath: string,
   { etagAlgorithm: algorithm, fileInfo }: ServeFileOptions = {},
@@ -160,7 +205,7 @@ async function serveFile(
         fileInfo.mtime &&
         ifModifiedSinceValue &&
         fileInfo.mtime.getTime() <
-          new Date(ifModifiedSinceValue).getTime() + 1000)
+        new Date(ifModifiedSinceValue).getTime() + 1000)
     ) {
       return createCommonResponse(Status.NotModified, null, { headers });
     }
@@ -176,7 +221,7 @@ async function serveFile(
 
   const rangeValue = req.headers.get("range");
 
-  // Handle range request
+  // handle range request
   // Note: Some clients add a Range header to all requests to limit the size of the response.
   // If the file is empty, ignore the range header and respond with a 200 rather than a 416.
   // https://github.com/golang/go/blob/0d347544cbca0f42b160424f6bc2458ebcc7b3fc/src/net/http/fs.go#L273-L276
@@ -222,7 +267,8 @@ async function serveFile(
     // Return 206 Partial Content
     const file = await Deno.open(filePath);
     await file.seek(start, Deno.SeekMode.Start);
-    const sliced = file.readable.pipeThrough(new ByteSliceStream(0, contentLength - 1));
+    const sliced = file.readable
+      .pipeThrough(new ByteSliceStream(0, contentLength - 1));
     return createCommonResponse(Status.PartialContent, sliced, { headers });
   }
 
@@ -233,13 +279,13 @@ async function serveFile(
   return createCommonResponse(Status.OK, file.readable, { headers });
 }
 
-function serveFallback(req: Request, maybeError: unknown): Response {
+async function serveFallback(req: Request, maybeError: unknown): Promise<Response> {
   if (maybeError instanceof URIError) {
     return createCommonResponse(Status.BadRequest);
   }
 
   if (maybeError instanceof Deno.errors.NotFound) {
-    return serveNotFound(req);
+    return await serveNotFound(req);
   }
 
   return createCommonResponse(Status.InternalServerError);
@@ -264,33 +310,28 @@ function createBaseHeaders(): Headers {
 
 /** Interface for serveDir options. */
 export interface ServeDirOptions {
-  /** Serves the files under the given directory root. Defaults to your current directory.
-   *
+  /**
+   * Serves the files under the given directory root. Defaults to your current directory.
    * @default {"."}
    */
   fsRoot?: string;
-  /** Specified that part is stripped from the beginning of the requested pathname.
-   *
+  /**
+   * Specified that part is stripped from the beginning of the requested pathname.
    * @default {undefined}
    */
   urlRoot?: string;
-  /** Enable CORS via the "Access-Control-Allow-Origin" header.
-   *
-   * @default {false}
-   */
-  enableCors?: boolean;
-  /** Do not print request level logs. Defaults to false.
-   *
+  /**
+   * Do not print request level logs. Defaults to false.
    * @default {false}
    */
   quiet?: boolean;
-  /** The algorithm to use for generating the ETag.
-   *
+  /**
+   * The algorithm to use for generating the ETag.
    * @default {"SHA-256"}
    */
   etagAlgorithm?: AlgorithmIdentifier;
-  /** Headers to add to each response
-   *
+  /**
+   * Headers to add to each response
    * @default {[]}
    */
   headers?: string[];
@@ -300,10 +341,9 @@ export interface ServeDirOptions {
  * Serves the files under the given directory root (opts.fsRoot).
  *
  * ```ts
- * import { serve } from "https://deno.land/std@$STD_VERSION/http/server.ts";
- * import { serveDir } from "https://raw.githubusercontent.com/zestack/zestack/main/server.ts";
+ * import { serveDir } from "https://deno.land/std@$STD_VERSION/http/file_server.ts";
  *
- * serve((req) => {
+ * Deno.serve((req) => {
  *   const pathname = new URL(req.url).pathname;
  *   if (pathname.startsWith("/static")) {
  *     return serveDir(req, {
@@ -315,10 +355,10 @@ export interface ServeDirOptions {
  * });
  * ```
  *
- * Optionally, you can pass `urlRoot` option. If it's specified that part is stripped from the beginning of the requested pathname.
+ * Optionally you can pass `urlRoot` option. If it's specified that part is stripped from the beginning of the requested pathname.
  *
  * ```ts
- * import { serveDir } from "https://raw.githubusercontent.com/zestack/zestack/main/server.ts";
+ * import { serveDir } from "https://deno.land/std@$STD_VERSION/http/file_server.ts";
  *
  * // ...
  * serveDir(new Request("http://localhost/static/path/to/file"), {
@@ -330,23 +370,22 @@ export interface ServeDirOptions {
  * The above example serves `./public/path/to/file` for the request to `/static/path/to/file`.
  *
  * @param req The request to handle
- * @param opts The serve directory options.
+ * @param opts
  */
 export async function serveDir(req: Request, opts: ServeDirOptions = {}) {
   let response: Response;
   try {
     response = await createServeDirResponse(req, opts);
   } catch (error) {
-    if (!opts.quiet) {
-      logError(error);
-    }
-    response = serveFallback(req, error);
+    if (!opts.quiet) logError(error);
+    response = await serveFallback(req, error);
   }
 
   // Do not update the header if the response is a 301 redirect.
   const isRedirectResponse = isRedirectStatus(response.status);
 
-  if (opts.enableCors && !isRedirectResponse) {
+  // Enable CORS via the "Access-Control-Allow-Origin" header.
+  if (!isRedirectResponse) {
     response.headers.append("access-control-allow-origin", "*");
     response.headers.append(
       "access-control-allow-headers",
@@ -354,9 +393,7 @@ export async function serveDir(req: Request, opts: ServeDirOptions = {}) {
     );
   }
 
-  if (!opts.quiet) {
-    serverLog(req, response.status);
-  }
+  if (!opts.quiet) serverLog(req, response.status);
 
   if (opts.headers && !isRedirectResponse) {
     for (const header of opts.headers) {
@@ -380,7 +417,7 @@ async function createServeDirResponse(
 
   const url = new URL(req.url);
   const decodedUrl = decodeURIComponent(url.pathname);
-  let normalizedPath = posix.normalize(decodedUrl);
+  let normalizedPath = posixNormalize(decodedUrl);
 
   if (urlRoot && !normalizedPath.startsWith("/" + urlRoot)) {
     return serveNotFound(req);
@@ -402,7 +439,7 @@ async function createServeDirResponse(
     normalizedPath = normalizedPath.slice(0, -1);
   }
 
-  const fsPath = posix.join(target, normalizedPath);
+  const fsPath = join(target, normalizedPath);
   const fileInfo = await Deno.stat(fsPath);
 
   // For files, remove the trailing slash from the path.
@@ -429,8 +466,8 @@ async function createServeDirResponse(
     });
   }
 
-  // if target is directory, serve index.html.
-  const indexPath = posix.join(fsPath, "index.html");
+  // serve index.html
+  const indexPath = join(fsPath, "index.html");
 
   let indexFileInfo: Deno.FileInfo | undefined;
   try {
@@ -441,12 +478,14 @@ async function createServeDirResponse(
     }
     // skip Not Found error
   }
+
   if (indexFileInfo?.isFile) {
     return serveFile(req, indexPath, {
       etagAlgorithm,
       fileInfo: indexFileInfo,
     });
   }
+
   return serveNotFound(req);
 }
 
@@ -456,104 +495,34 @@ function logError(error: unknown) {
 
 function main() {
   const serverArgs = parse(Deno.args, {
-    string: ["port", "host", "cert", "key", "header"],
-    boolean: ["help", "cors", "verbose", "version"],
-    negatable: ["cors"],
+    string: ["port", "host"],
+    boolean: ["verbose"],
     collect: ["header"],
     default: {
-      cors: true,
       verbose: false,
-      version: false,
       host: "0.0.0.0",
       port: "4507",
-      cert: "",
-      key: "",
     },
     alias: {
       p: "port",
-      c: "cert",
-      k: "key",
-      h: "help",
-      v: "verbose",
-      V: "version",
-      H: "header",
     },
   });
-  const port = Number(serverArgs.port);
-  const headers = serverArgs.header || [];
-  const host = serverArgs.host;
-  const certFile = serverArgs.cert;
-  const keyFile = serverArgs.key;
-
-  if (serverArgs.help) {
-    printUsage();
-    Deno.exit();
-  }
-
-  if (serverArgs.version) {
-    console.log(`Deno File Server ${VERSION}`);
-    Deno.exit();
-  }
-
-  if (keyFile || certFile) {
-    if (keyFile === "" || certFile === "") {
-      console.log("--key and --cert are required for TLS");
-      printUsage();
-      Deno.exit(1);
-    }
-  }
 
   const wild = serverArgs._ as string[];
-  const target = posix.resolve(wild[0] ?? "");
+  const target = resolve(wild[0] ?? "");
 
   const handler = (req: Request): Promise<Response> => {
     return serveDir(req, {
       fsRoot: target,
-      enableCors: serverArgs.cors,
       quiet: !serverArgs.verbose,
-      headers,
+      headers: (serverArgs.header || []) as string[],
     });
   };
 
-  const useTls = !!(keyFile && certFile);
-
-  if (useTls) {
-    serveTls(handler, {
-      port,
-      hostname: host,
-      certFile,
-      keyFile,
-    });
-  } else {
-    serve(handler, { port, hostname: host });
-  }
-}
-
-function printUsage() {
-  console.log(`Deno File Server ${VERSION}
-  Serves a local directory in HTTP.
-
-INSTALL:
-  deno install --allow-net --allow-read https://raw.githubusercontent.com/zestack/zestack/main/server.ts
-
-USAGE:
-  file_server [path] [options]
-
-OPTIONS:
-  -h, --help            Prints help information
-  -p, --port <PORT>     Set port
-  --cors                Enable CORS via the "Access-Control-Allow-Origin" header
-  --host     <HOST>     Hostname (default is 0.0.0.0)
-  -c, --cert <FILE>     TLS certificate file (enables TLS)
-  -k, --key  <FILE>     TLS key file (enables TLS)
-  -H, --header <HEADER> Sets a header on every request.
-                        (e.g. --header "Cache-Control: no-cache")
-                        This option can be specified multiple times.
-  --no-cors             Disable cross-origin resource sharing
-  -v, --verbose         Print request level logs
-  -V, --version         Print version information
-
-  All TLS options are required when one is provided.`);
+  Deno.serve({
+    port: Number(serverArgs.port),
+    hostname: serverArgs.host,
+  }, handler);
 }
 
 if (import.meta.main) {

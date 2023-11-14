@@ -8,8 +8,8 @@ const FeatureList = [
     Svg: require('@site/static/img/undraw_docusaurus_mountain.svg').default,
     description: (
       <>
-        Docusaurus was designed from the ground up to be easily installed and
-        used to get your website up and running quickly.
+        Slim is designed for speed and efficiency,
+        ensuring minimal overhead and high performance for handling HTTP requests and responses.
       </>
     ),
   },
@@ -28,8 +28,7 @@ const FeatureList = [
     Svg: require('@site/static/img/undraw_docusaurus_react.svg').default,
     description: (
       <>
-        Extend or customize your website layout by reusing React. Docusaurus can
-        be extended while reusing the same header and footer.
+        Customized central HTTP error handling. Easily extendable API.
       </>
     ),
   },
