@@ -107,7 +107,7 @@ const config: Config = {
         // },
         // {to: '/blog', label: '博客', position: 'left'},
         {
-          href: 'https://github.com/facebook/docusaurus',
+          href: 'https://github.com/zestack/zestack',
           label: 'GitHub',
           position: 'right',
         },
