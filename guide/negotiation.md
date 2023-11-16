@@ -1,8 +1,8 @@
 ---
-sidebar_position: 1
+sidebar_position: 10
 ---
 
-# Negotiation
+# 内容协商
 
 ## type Negotiator
 

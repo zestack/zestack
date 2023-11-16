@@ -9,7 +9,9 @@ sidebar_position: 3
 一个承上启下的中间件
 
 ```go
-func Explicitly(c Context, next HandlerFunc) error
+func Explicitly(c Context, next HandlerFunc) error {
+    return next(c)
+}
 ```
 
 ## func Compose
@@ -20,3 +22,7 @@ func Explicitly(c Context, next HandlerFunc) error
 ```go
 func Compose(middleware ...MiddlewareFunc) MiddlewareFunc
 ```
+
+:::warning
+当我们不提供参数时，函数 Compose 的返回值是 **nil**。 
+:::

@@ -8,170 +8,160 @@ sidebar_position: 4
 
 ```go
 type Context interface {
-	Context() stdctx.Context
-	// Request returns `*http.Request`.
-	// 返回当前请求的 `*http.Request` 结构体实例。
-	Request() *http.Request
-	// SetRequest sets `*http.Request`.
-	// 设置 `*http.Request` 结构体实例。
-	SetRequest(r *http.Request)
-	// Response returns `slim.ResponseWriter`.
-	Response() ResponseWriter
-	// SetResponse sets `slim.ResponseWriter`.
-	SetResponse(r ResponseWriter)
-	// Logger returns the `Logger` instance.
-	Logger() Logger
-	// SetLogger Set the logger
-	SetLogger(logger Logger)
-	// Filesystem returns `fs.FS`.
-	Filesystem() fs.FS
-	// SetFilesystem sets `fs.FS`
-	SetFilesystem(fs.FS)
-	// IsTLS returns true if HTTP connection is TLS otherwise false.
-	IsTLS() bool
-	// IsWebSocket returns true if HTTP connection is WebSocket otherwise false.
-	IsWebSocket() bool
-	// Scheme returns the HTTP protocol scheme, `http` or `https`.
-	Scheme() string
-	// RealIP returns the client's network address based on `X-Forwarded-For`
-	// or `X-Real-IP` request header.
-	// The behavior can be configured using `Echo#IPExtractor`.
-	RealIP() string
-	RequestURI() string
-	// Accepts 返回支持的权重最高的媒体类型，若匹配失败则会返回空字符串。
-	// 给出的值可以是标准的媒体类型（如 application/json），也可以是扩展名（如 json、xml 等）。
-	Accepts(expect ...string) string
-	// AcceptsEncodings 返回支持的权重最高的编码方式，若匹配失败则会返回空字符串。
-	AcceptsEncodings(encodings ...string) string
-	// AcceptsCharsets 返回支持的权重最高的字符集，若匹配失败则会返回空字符串。
-	AcceptsCharsets(charsets ...string) string
-	// AcceptsLanguages 返回支持的权重最高的语言，若匹配失败则会返回空字符串。
-	AcceptsLanguages(languages ...string) string
-	// AllowsMethods 返回允许的请求方法
-	AllowsMethods() []string
-	// RouteMatchType returns router match type for current context. This helps middlewares to distinguish which type
-	// of match router found and how this request context handler chain could end:
-	// * route match - this path + method had matching route.
-	// * not found - this path did not match any routes enough to be considered match
-	// * method not allowed - path had routes registered but for other method types then current request is
-	// * unknown - initial state for fresh context before router tries to do routing
-	//
-	// Note: for pre-middleware (Mux.Use) this method result is always RouteMatchUnknown as at point router has not tried
-	// to match request to route.
-	RouteMatchType() RouteMatchType
-	// RouteInfo returns current request route information. Method, Path, Name and params if they exist for matched route.
-	// In the case of 404 (route not found) and 405 (method not allowed) RouteInfo returns generic struct for these cases.
-	RouteInfo() RouteInfo
-	// PathParam returns path parameter by name.
-	PathParam(name string) string
-	// PathParams returns path parameter values.
-	PathParams() PathParams
-	// SetPathParams set path parameter for during current request lifecycle.
-	SetPathParams(params PathParams)
-	// QueryParam returns the query param for the provided name.
-	QueryParam(name string) string
-	// QueryParams returns the query parameters as `url.Values`.
-	QueryParams() url.Values
-	// QueryString returns the URL query string.
-	QueryString() string
-	// FormValue returns the form field value for the provided name.
-	FormValue(name string) string
-	// FormParams returns the form parameters as `url.Values`.
-	FormParams() (url.Values, error)
-	// FormFile returns the multipart form file for the provided name.
-	FormFile(name string) (*multipart.FileHeader, error)
-	Header(key string) string
-	SetHeader(key string, values ...string)
-	// MultipartForm returns the multipart form.
-	MultipartForm() (*multipart.Form, error)
-	// Cookie returns the named cookie provided in the request.
-	Cookie(name string) (*http.Cookie, error)
-	// SetCookie adds a `Set-Cookie` header in HTTP response.
-	SetCookie(cookie *http.Cookie)
-	// Cookies return the HTTP cookies sent with the request.
-	Cookies() []*http.Cookie
-	// Get retrieves data from the context.
-	Get(key string) any
-	// Set saves data in the context.
-	Set(key string, val any)
-	// Bind binds the request body into a provided type `i`. The default binder
-	// does it based on Content-Type header.
-	Bind(i any) error
-	// Validate validates provided `i`. It is usually called after `Context#Bind()`.
-	// Validator must be registered using `Echo#Validator`.
-	Validate(i any) error
-	// Written returns whether the context response has been written to
-	Written() bool
-	// Render renders a template with data and sends a text/html response with status
-	// code. Renderer must be registered using `Echo.Renderer`.
-	Render(code int, name string, data any) error
-	// HTML sends an HTTP response with status code.
-	HTML(code int, html string) error
-	// HTMLBlob sends an HTTP blob response with status code.
-	HTMLBlob(code int, b []byte) error
-	// String sends a string response with status code.
-	String(code int, s string) error
-	// JSON sends a JSON response with status code.
-	JSON(code int, i any) error
-	// JSONPretty sends a pretty-print JSON with status code.
-	JSONPretty(code int, i any, indent string) error
-	// JSONBlob sends a JSON blob response with status code.
-	JSONBlob(code int, b []byte) error
-	// JSONP sends a JSONP response with status code. It uses `callback` to construct
-	// the JSONP payload.
-	JSONP(code int, callback string, i any) error
-	// JSONPBlob sends a JSONP blob response with status code. It uses `callback`
-	// to construct the JSONP payload.
-	JSONPBlob(code int, callback string, b []byte) error
-	// XML sends an XML response with status code.
-	XML(code int, i any) error
-	// XMLPretty sends a pretty-print XML with status code.
-	XMLPretty(code int, i any, indent string) error
-	// XMLBlob sends an XML blob response with status code.
-	XMLBlob(code int, b []byte) error
-	// Blob sends a blob response with a status code and content type.
-	Blob(code int, contentType string, b []byte) error
-	// Stream sends a streaming response with status code and content type.
-	Stream(code int, contentType string, r io.Reader) error
-	// File sends a response with the content of the file.
-	File(file string, filesystem ...fs.FS) error
-	// Attachment sends a response as attachment, prompting client to save the
-	// file.
-	Attachment(file string, name string) error
-	// Inline sends a response as inline, opening the file in the browser.
-	Inline(file string, name string) error
-	// NoContent sends a response with nobody and a status code.
-	NoContent(code ...int) error
-	// Redirect redirects the request to a provided URL with status code.
-	Redirect(code int, url string) error
-	// Error invokes the registered HTTP error handler.
-	// NB: Avoid using this method. It is better to return errors, so middlewares up in a chain could act on returned error.
-	Error(err error)
-	// Slim 返回 Slim 实例
-	Slim() *Slim
+    Context() stdctx.Context
+    // 返回当前请求的 `*http.Request` 结构体实例。
+    Request() *http.Request
+    // 设置 `*http.Request` 结构体实例。
+    SetRequest(r *http.Request)
+    // Response returns `slim.ResponseWriter`.
+    Response() ResponseWriter
+    // SetResponse sets `slim.ResponseWriter`.
+    SetResponse(r ResponseWriter)
+    // Logger returns the `Logger` instance.
+    Logger() Logger
+    // SetLogger Set the logger
+    SetLogger(logger Logger)
+    // Filesystem returns `fs.FS`.
+    Filesystem() fs.FS
+    // SetFilesystem sets `fs.FS`
+    SetFilesystem(fs.FS)
+    // IsTLS returns true if HTTP connection is TLS otherwise false.
+    IsTLS() bool
+    // IsWebSocket returns true if HTTP connection is WebSocket otherwise false.
+    IsWebSocket() bool
+    // Scheme returns the HTTP protocol scheme, `http` or `https`.
+    Scheme() string
+    // RealIP returns the client's network address based on `X-Forwarded-For`
+    // or `X-Real-IP` request header.
+    // The behavior can be configured using `Echo#IPExtractor`.
+    RealIP() string
+    RequestURI() string
+    // Accepts 返回支持的权重最高的媒体类型，若匹配失败则会返回空字符串。
+    // 给出的值可以是标准的媒体类型（如 application/json），也可以是扩展名（如 json、xml 等）。
+    Accepts(expect ...string) string
+    // AcceptsEncodings 返回支持的权重最高的编码方式，若匹配失败则会返回空字符串。
+    AcceptsEncodings(encodings ...string) string
+    // AcceptsCharsets 返回支持的权重最高的字符集，若匹配失败则会返回空字符串。
+    AcceptsCharsets(charsets ...string) string
+    // AcceptsLanguages 返回支持的权重最高的语言，若匹配失败则会返回空字符串。
+    AcceptsLanguages(languages ...string) string
+    // AllowsMethods 返回允许的请求方法
+    AllowsMethods() []string
+    // 返回路由器匹配的结果
+    RouteMatchType() RouteMatchType
+    // RouteInfo returns current request route information. Method, Path, Name and params if they exist for matched route.
+    // In the case of 404 (route not found) and 405 (method not allowed) RouteInfo returns generic struct for these cases.
+    RouteInfo() RouteInfo
+    // PathParam returns path parameter by name.
+    PathParam(name string) string
+    // PathParams returns path parameter values.
+    PathParams() PathParams
+    // SetPathParams set path parameter for during current request lifecycle.
+    SetPathParams(params PathParams)
+    // QueryParam returns the query param for the provided name.
+    QueryParam(name string) string
+    // QueryParams returns the query parameters as `url.Values`.
+    QueryParams() url.Values
+    // QueryString returns the URL query string.
+    QueryString() string
+    // FormValue returns the form field value for the provided name.
+    FormValue(name string) string
+    // FormParams returns the form parameters as `url.Values`.
+    FormParams() (url.Values, error)
+    // FormFile returns the multipart form file for the provided name.
+    FormFile(name string) (*multipart.FileHeader, error)
+    Header(key string) string
+    SetHeader(key string, values ...string)
+    // MultipartForm returns the multipart form.
+    MultipartForm() (*multipart.Form, error)
+    // Cookie returns the named cookie provided in the request.
+    Cookie(name string) (*http.Cookie, error)
+    // SetCookie adds a `Set-Cookie` header in HTTP response.
+    SetCookie(cookie *http.Cookie)
+    // Cookies return the HTTP cookies sent with the request.
+    Cookies() []*http.Cookie
+    // Get retrieves data from the context.
+    Get(key string) any
+    // Set saves data in the context.
+    Set(key string, val any)
+    // Bind binds the request body into a provided type `i`. The default binder
+    // does it based on Content-Type header.
+    Bind(i any) error
+    // Validate validates provided `i`. It is usually called after `Context#Bind()`.
+    // Validator must be registered using `Echo#Validator`.
+    Validate(i any) error
+    // Written returns whether the context response has been written to
+    Written() bool
+    // Render renders a template with data and sends a text/html response with status
+    // code. Renderer must be registered using `Echo.Renderer`.
+    Render(code int, name string, data any) error
+    // HTML sends an HTTP response with status code.
+    HTML(code int, html string) error
+    // HTMLBlob sends an HTTP blob response with status code.
+    HTMLBlob(code int, b []byte) error
+    // String sends a string response with status code.
+    String(code int, s string) error
+    // JSON sends a JSON response with status code.
+    JSON(code int, i any) error
+    // JSONPretty sends a pretty-print JSON with status code.
+    JSONPretty(code int, i any, indent string) error
+    // JSONBlob sends a JSON blob response with status code.
+    JSONBlob(code int, b []byte) error
+    // JSONP sends a JSONP response with status code. It uses `callback` to construct
+    // the JSONP payload.
+    JSONP(code int, callback string, i any) error
+    // JSONPBlob sends a JSONP blob response with status code. It uses `callback`
+    // to construct the JSONP payload.
+    JSONPBlob(code int, callback string, b []byte) error
+    // XML sends an XML response with status code.
+    XML(code int, i any) error
+    // XMLPretty sends a pretty-print XML with status code.
+    XMLPretty(code int, i any, indent string) error
+    // XMLBlob sends an XML blob response with status code.
+    XMLBlob(code int, b []byte) error
+    // Blob sends a blob response with a status code and content type.
+    Blob(code int, contentType string, b []byte) error
+    // Stream sends a streaming response with status code and content type.
+    Stream(code int, contentType string, r io.Reader) error
+    // File sends a response with the content of the file.
+    File(file string, filesystem ...fs.FS) error
+    // Attachment sends a response as attachment, prompting client to save the
+    // file.
+    Attachment(file string, name string) error
+    // Inline sends a response as inline, opening the file in the browser.
+    Inline(file string, name string) error
+    // NoContent sends a response with nobody and a status code.
+    NoContent(code ...int) error
+    // Redirect redirects the request to a provided URL with status code.
+    Redirect(code int, url string) error
+    // Error invokes the registered HTTP error handler.
+    // NB: Avoid using this method. It is better to return errors, so middlewares up in a chain could act on returned error.
+    Error(err error)
+    // Slim 返回 Slim 实例
+    Slim() *Slim
 }
 ```
 
-Context represents the context of the current HTTP request. It holds request and response objects, path, path parameters, data and registered handler.
+接口 `Context` 是表示当前 HTTP 请求的上下文，它包含对请求和响应对象的引用、路径、路径参数、数据和匹配的路由信息。
 
 ## type EditableContext
 
 ```go
 type EditableContext interface {
-	Context
-	// RawPathParams returns raw path pathParams value.
-	RawPathParams() *PathParams
-	// SetRawPathParams replaces any existing param values with new values for this context lifetime (request).
-	SetRawPathParams(params *PathParams)
-	// SetRouteMatchType sets the RouteMatchType of router match for this request.
-	SetRouteMatchType(t RouteMatchType)
-	SetAllowsMethods(methods []string)
-	// SetRouteInfo sets the route info of this request to the context.
-	SetRouteInfo(ri RouteInfo)
-	// Reset resets the context after request completes. It must be called along
-	// with `Echo#AcquireContext()` and `Echo#ReleaseContext()`.
-	// See `Echo#ServeHTTP()`
-	Reset(w http.ResponseWriter, r *http.Request)
+    Context
+    // RawPathParams returns raw path pathParams value.
+    RawPathParams() *PathParams
+    // SetRawPathParams replaces any existing param values with new values for this context lifetime (request).
+    SetRawPathParams(params *PathParams)
+    // SetRouteMatchType sets the RouteMatchType of router match for this request.
+    SetRouteMatchType(t RouteMatchType)
+    SetAllowsMethods(methods []string)
+    // SetRouteInfo sets the route info of this request to the context.
+    SetRouteInfo(ri RouteInfo)
+    // Reset resets the context after request completes. It must be called along
+    // with `Echo#AcquireContext()` and `Echo#ReleaseContext()`.
+    // See `Echo#ServeHTTP()`
+    Reset(w http.ResponseWriter, r *http.Request)
 }
 ```
 
@@ -179,12 +169,12 @@ type EditableContext interface {
 
 ```go
 type PathParam struct {
-	Name  string
-	Value string
+    Name  string
+    Value string
 }
 ```
 
-路由参数结构体。
+路由参数单元结构体。
 
 ## type PathParams
 
@@ -294,7 +284,7 @@ func (c *context) SetFilesystem(fs.FS)
 func (c *context) IsTLS() bool
 ```
 
-returns true if HTTP connection is TLS otherwise false.
+如果 HTTP 连接是 TLS 则返回 true，否则返回 false。
 
 ### func (*context) IsWebSocket
 
@@ -302,7 +292,7 @@ returns true if HTTP connection is TLS otherwise false.
 func (c *context) IsWebSocket() bool
 ```
 
-returns true if HTTP connection is WebSocket otherwise false.
+如果是 WebSocket 连接则返回 true，反之返回 false。
 
 ### func (*context) Scheme
 
@@ -310,7 +300,7 @@ returns true if HTTP connection is WebSocket otherwise false.
 func (c *context) Scheme() string
 ```
 
-returns the HTTP protocol scheme, `http` or `https`.
+返回 HTTP 协议方案，值是 `http` 或 `https`。
 
 ### func (*context) RealIP
 
@@ -336,9 +326,9 @@ func (c *context) Accepts(expect ...string) string
 
 返回支持的权重最高的媒体类型，若匹配失败则会返回空字符串。给出的参数 `expect` 的值可以是标准的媒体类型（如 application/json），也可以是扩展名（如 json、xml 等）。
 
-使用示例：
+具体逻辑参考接口 [Negotiation](negotiation.md#func-negotiator-type)
 
-```go
+```go title="使用示例"
 // Accept: text/html
 c.accepts("html")
 // => "html"
@@ -371,7 +361,7 @@ c.accepts("json", "html")
 
 某些情况下，需要根据内容协商做出不同的行为，我们可以使用 **switch**：
 
-```go
+```go title="使用示例"
 switch(c.accepts("json", "html", "text")) {
   case "json":
   case "html":
@@ -388,9 +378,7 @@ func (c *context) AcceptsEncodings(encodings ...string) string
 
 返回当前请求支持的权重最高的编码方式，若匹配失败则会返回空字符串。
 
-使用示例：
-
-```go
+```go title="使用示例"
 // Accept-Encoding: gzip
 c.acceptsEncodings("gzip", "deflate", "identity")
 // => "gzip"
@@ -404,9 +392,7 @@ func (c *context) AcceptsCharsets(charsets ...string) string
 
 返回支持的权重最高的字符集，若匹配失败则会返回空字符串。
 
-使用示例：
-
-```go
+```go title="使用示例"
 // Accept-Charset: utf-8, iso-8859-1;q=0.2, utf-7;q=0.5
 c.acceptsCharsets("utf-8", "utf-7")
 // => "utf-8"
@@ -420,9 +406,7 @@ func (c *context) AcceptsLanguages(languages ...string) string
 
 返回支持的权重最高的语言，若匹配失败则会返回空字符串。
 
-使用示例：
-
-```go
+```go title="使用示例"
 // Accept-Language: en;q=0.8, es, pt
 c.acceptsLanguages("es", "en")
 // => "es"
@@ -434,7 +418,7 @@ c.acceptsLanguages("es", "en")
 func (c *context) AllowsMethods() []string
 ```
 
-返回允许的请求方法
+返回本次请求路径所支持的所有请求方法（包括与路径匹配的路由所支持的 HTTP 方法和不匹配的路由所支持的 HTTP 方法）。
 
 ### func (*context) RouteMatchType
 
@@ -442,16 +426,18 @@ func (c *context) AllowsMethods() []string
 func (c *context) RouteMatchType() RouteMatchType
 ```
 
-returns router match type for current context. This helps middlewares to distinguish which type
-of match router found and how this request context handler chain could end:
-* route match - this path + method had matching route.
-* not found - this path did not match any routes enough to be considered match
-* method not allowed - path had routes registered but for other method types then current request is
-* unknown - initial state for fresh context before router tries to do routing
+返回路由器匹配的结果，我们可以据此确定使用那种方式完成本次请求:
+
+* RouteMatchFound - 通过当前请求的路径和方法成功匹配到我们定义的路由；
+* RouteMatchNotFound - 没有与本次请求路径相匹配的路由；
+* RouteMatchMethodNotAllowed - 能够通过请求路径匹配到路由，但是该无法支持本次请求所使用的 HTTP 方法；
+* RouteMatchUnknown — 程序尚未开始执行匹配，表示上下文为初始状态。
 
 :::tip
-for pre-middleware (Slim.Use) this method result is always RouteMatchUnknown as at point router has not tried
-to match request to route.
+如果在通过方法 Slim#Use 注册在 Slim 实例上的中间件上调用当方法，返回的值极有可能是 RouteMatchUnknown，
+那是因为此刻程序尚未对本次请求去匹配路由，只有等到请求逆序返回的时候才可能取到其它值。
+
+参考 [《快速上手》](../guide/quick-start#middleware) 理解什么是中间件。
 :::
 
 ### func (*context) RouteInfo
@@ -460,8 +446,7 @@ to match request to route.
 func (c *context) RouteInfo() RouteInfo
 ```
 
-returns current request route information. Method, Path, Name and params if they exist for matched route.
-In the case of 404 (route not found) and 405 (method not allowed) RouteInfo returns generic struct for these cases.
+返回当前请求的路由信息。
 
 ### func (*context) PathParam
 
@@ -469,7 +454,7 @@ In the case of 404 (route not found) and 405 (method not allowed) RouteInfo retu
 func (c *context) PathParam(name string) string
 ```
 
-returns path parameter by name.
+获取指定名称的路径参数值，如果不存在返回空字符串。
 
 ### func (*context) PathParams
 
@@ -477,7 +462,7 @@ returns path parameter by name.
 func (c *context) PathParams() PathParams
 ```
 
-returns path parameter values.
+返回所以的路径参数。
 
 ### func (*context) SetPathParams
 
@@ -493,7 +478,7 @@ set path parameter for during current request lifecycle.
 func (c *context) QueryParam(name string) string
 ```
 
-returns the query param for the provided name.
+返回指定名称的查询参数值，若不存在则返回空字符串。
 
 ### func (*context) QueryParams
 
@@ -501,8 +486,7 @@ returns the query param for the provided name.
 func (c *context) QueryParams() url.Values
 ```
 
-
-returns the query parameters as `url.Values`.
+使用 `url.Values` 结构体返回所有的查询参数。
 
 ### func (*context) QueryString
 
@@ -510,8 +494,7 @@ returns the query parameters as `url.Values`.
 func (c *context) QueryString() string
 ```
 
-
-returns the URL query string.
+返回查询字符串。
 
 ### func (*context) FormValue
 
@@ -519,8 +502,7 @@ returns the URL query string.
 func (c *context) FormValue(name string) string
 ```
 
-
-returns the form field value for the provided name.
+返回指定名称的表单数据。
 
 ### func (*context) FormParams() 
 
@@ -528,8 +510,7 @@ returns the form field value for the provided name.
 func (c *context) FormParams() (url.Values, error)
 ```
 
-
-returns the form parameters as `url.Values`.
+使用 `url.Values` 结构体返回提交的所有表单数据。
 
 ### func (*context) FormFile(name string) 
 
@@ -537,15 +518,13 @@ returns the form parameters as `url.Values`.
 func (c *context) FormFile(name string) (*multipart.FileHeader, error)
 ```
 
-
-returns the multipart form file for the provided name.
+返回上传的文件。
 
 ### func (*context) Header
 
 ```go
 func (c *context) Header(key string) string
 ```
-
 
 返回名称为 `key` 的请求报头的值。
 
@@ -555,7 +534,6 @@ func (c *context) Header(key string) string
 func (c *context) SetHeader(key string, values ...string)
 ```
 
-
 设置响应报头
 
 ### func (*context) MultipartForm() 
@@ -564,15 +542,13 @@ func (c *context) SetHeader(key string, values ...string)
 func (c *context) MultipartForm() (*multipart.Form, error)
 ```
 
-
-returns the multipart form.
+返回上传的所以文件，第二个返回值表示解析文件失败。
 
 ### func (*context) Cookie(name string) 
 
 ```go
 func (c *context) Cookie(name string) (*http.Cookie, error)
 ```
-
 
 returns the named cookie provided in the request.
 
@@ -582,7 +558,6 @@ returns the named cookie provided in the request.
 func (c *context) SetCookie(cookie *http.Cookie)
 ```
 
-
 adds a `Set-Cookie` header in HTTP response.
 
 ### func (*context) Cookies
@@ -590,7 +565,6 @@ adds a `Set-Cookie` header in HTTP response.
 ```go
 func (c *context) Cookies() []*http.Cookie
 ```
-
 
 return the HTTP cookies sent with the request.
 
@@ -600,7 +574,6 @@ return the HTTP cookies sent with the request.
 func (c *context) Get(key string) any
 ```
 
-
 返回储存在上下文中的数据。
 
 ### func (*context) Set
@@ -609,7 +582,6 @@ func (c *context) Get(key string) any
 func (c *context) Set(key string, val any)
 ```
 
-
 将一个值保存到上下文中。
 
 ### func (*context) Bind
@@ -617,7 +589,6 @@ func (c *context) Set(key string, val any)
 ```go
 func (c *context) Bind(i any) error
 ```
-
 
 将请求时提交的数据绑定到参数 `i` 上，主要来源如下：
 
@@ -805,7 +776,10 @@ func (c *context) Error(err error)
 ```
 
 Error invokes the registered HTTP error handler.
-NB: Avoid using this method. It is better to return errors, so middlewares up in a chain could act on returned error.
+
+:::warning
+我们不应该在路由处理器函数和中间件中使用使用该方法，而是通过返回错误值，Slim 程序会调用我们定义的错误处理器函数来统一处理错误。
+:::
 
 ### func (*context) Slim
 
