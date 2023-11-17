@@ -16,6 +16,7 @@ function HomepageHeader() {
           {siteConfig.title}
         </Heading>
         <p className="hero__subtitle">{siteConfig.tagline}</p>
+        <img className={styles.heroTerminal} src={require('@site/static/img/home-terminal.png').default}/>
         <div className={styles.buttons}>
           <Link
             className="button button--secondary button--lg"

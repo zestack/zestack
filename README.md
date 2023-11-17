@@ -1,41 +1,8 @@
-# Website
+# Slim
 
-This website is built using [Docusaurus 2](https://docusaurus.io/), a modern static website generator.
+Slim 项目是一个功能强大且用途广泛的 Web 框架，用于使用 Go 编程语言构建可扩展且高性能的 Web 应用程序。 它遵循简单性、灵活性和高性能的原则，为开发人员提供了一个高效的工具包，用于构建健壮的 Web 应用程序。
 
-### Installation
+## 资源和文档
 
-```
-$ yarn
-```
-
-### Local Development
-
-```
-$ yarn start
-```
-
-This command starts a local development server and opens up a browser window. Most changes are reflected live without having to restart the server.
-
-### Build
-
-```
-$ yarn build
-```
-
-This command generates static content into the `build` directory and can be served using any static contents hosting service.
-
-### Deployment
-
-Using SSH:
-
-```
-$ USE_SSH=true yarn deploy
-```
-
-Not using SSH:
-
-```
-$ GIT_USER=<Your GitHub username> yarn deploy
-```
-
-If you are using GitHub pages for hosting, this command is a convenient way to build the website and push to the `gh-pages` branch.
+* 官方网站： https://slim.zestack.dev
+* GitHub：https://github.com/zestack/slim
